@@ -363,12 +363,44 @@ function AdminView({ pendingSongs, approvedSongs, deletedSongs, users, videos, f
 
       {tab === 'users' && (
         <div className="admin-section">
-           {users.map(u => (
-             <div key={u.id} className="admin-row">
-               <div>{u.name} ({u.branch}) - {u.loginCount} Logins</div>
-               <div style={{display:'flex', gap:'5px'}}><button className="btn btn-outline" onClick={async()=>{await actions.toggleUserRole(u.id, u.role); refreshAll();}}>Role</button><button className="btn btn-danger" onClick={async()=>{await actions.deleteUser(u.id); refreshAll();}}><Trash2 size={14}/></button></div>
-             </div>
-           ))}
+           <div className="admin-grid" style={{gridTemplateColumns:'1fr'}}>
+              {registeredUsers.map(u => (
+                <div key={u.id} className="admin-row" style={{flexDirection:'column', alignItems:'flex-start', padding:'15px'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', width:'100%', marginBottom:'8px'}}>
+                    <div style={{fontWeight:'600', fontSize:'16px'}}>{u.name} <span style={{fontSize:'12px', fontWeight:'lighter', color:'#94a3b8'}}>({u.branch})</span></div>
+                    <div style={{display:'flex', gap:'5px'}}>
+                      <button className="btn btn-outline" style={{padding:'4px 8px', fontSize:'12px'}} onClick={async()=>{await actions.toggleUserRole(u.id, u.role); refreshAll();}}>
+                        {u.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
+                      </button>
+                      <button className="btn btn-danger" style={{padding:'4px 8px'}} onClick={async()=>{if(confirm('Delete user?')) { await actions.deleteUser(u.id); refreshAll(); }}}>
+                        <Trash2 size={14}/>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'15px', width:'100%', fontSize:'13px', color:'#e2e8f0'}}>
+                    <div className="status-badge" style={{background:'rgba(99, 102, 241, 0.1)', border:'1px solid rgba(99, 102, 241, 0.2)', padding:'8px', borderRadius:'8px'}}>
+                      <div style={{color:'#94a3b8', fontSize:'11px', textTransform:'uppercase', marginBottom:'4px'}}>Registration Date</div>
+                      <div style={{fontWeight:'500'}}>
+                        {u.registeredAt ? new Date(u.registeredAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }) : 'Generic'}
+                      </div>
+                    </div>
+
+                    <div className="status-badge" style={{background:'rgba(34, 197, 94, 0.1)', border:'1px solid rgba(34, 197, 94, 0.2)', padding:'8px', borderRadius:'8px'}}>
+                      <div style={{color:'#94a3b8', fontSize:'11px', textTransform:'uppercase', marginBottom:'4px'}}>Last Login Session</div>
+                      <div style={{fontWeight:'500'}}>
+                        {u.lastLogin ? new Date(u.lastLogin).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }) : 'Never'}
+                      </div>
+                    </div>
+
+                    <div className="status-badge" style={{background:'rgba(245, 158, 11, 0.1)', border:'1px solid rgba(245, 158, 11, 0.2)', padding:'8px', borderRadius:'8px'}}>
+                      <div style={{color:'#94a3b8', fontSize:'11px', textTransform:'uppercase', marginBottom:'4px'}}>Usage Stats</div>
+                      <div style={{fontWeight:'500'}}>{u.loginCount} Total Sessions</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+           </div>
         </div>
       )}
 
