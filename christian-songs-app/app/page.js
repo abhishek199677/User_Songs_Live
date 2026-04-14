@@ -364,7 +364,7 @@ function AdminView({ pendingSongs, approvedSongs, deletedSongs, users, videos, f
       {tab === 'users' && (
         <div className="admin-section">
            <div className="admin-grid" style={{gridTemplateColumns:'1fr'}}>
-              {registeredUsers.map(u => (
+              {users.map(u => (
                 <div key={u.id} className="admin-row" style={{flexDirection:'column', alignItems:'flex-start', padding:'15px'}}>
                   <div style={{display:'flex', justifyContent:'space-between', width:'100%', marginBottom:'8px'}}>
                     <div style={{fontWeight:'600', fontSize:'16px'}}>{u.name} <span style={{fontSize:'12px', fontWeight:'lighter', color:'#94a3b8'}}>({u.branch})</span></div>
