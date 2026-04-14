@@ -7,10 +7,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function POST(request) {
-  console.log("--- Chat API Request (Ollama Priority) ---");
   try {
     const { message, identifier } = await request.json();
-    console.log(`User: ${identifier} | Message: ${message}`);
 
     // 1. Authenticate Admin
     const { data: user, error: authError } = await supabase
@@ -20,9 +18,8 @@ export async function POST(request) {
       .single();
 
     const isHardcodedAdmin = ['puttapoguabhishek1007@gmail.com', 'admin'].includes(identifier?.toLowerCase());
-
     if (!isHardcodedAdmin && (authError || user?.role !== 'admin')) {
-      return NextResponse.json({ text: "❌ Access Denied: Admin authorization failed." });
+      return NextResponse.json({ text: "❌ Access Denied: Admin only." });
     }
 
     const adminName = user?.name || "Administrator";
@@ -39,51 +36,54 @@ export async function POST(request) {
       songContext += songs.map(s => `- ID: ${s.id} | Title: ${s.title}`).join('\n');
     }
 
-    const systemPrompt = `You are the Admin AI Manager. DATA: ${songCount} songs, ${videoCount} videos.
+    const systemPrompt = `You are the Admin AI Manager.
 CONTEXT:
 ${songContext}
 COMMANDS: [RENAME_SONG:id|New Title], [DELETE_SONG:id], [DELETE_VIDEO:id].
-USER: ${adminName}. Execute commands exactly as requested.`;
+USER: ${adminName}. Execute commands exactly.`;
 
     let botResponse = "";
     let provider = "Ollama (Local)";
 
-    // 3. Try Local Ollama (Priority)
-    console.log("Calling local Ollama (llama3:latest)...");
-    try {
-        const ollamaRes = await fetch('http://127.0.0.1:11434/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: "llama3:latest",
-            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: message }],
-            stream: false,
-            options: {
-              num_predict: 1024,
-              temperature: 0.1
-            }
-          }),
-          signal: AbortSignal.timeout(60000) // 60s for local models
-        });
-        
-        if (ollamaRes.ok) {
-            const data = await ollamaRes.json();
-            botResponse = data.message?.content || "";
-            console.log("Success: Ollama responded.");
-        } else {
-            console.warn("Ollama Error Code:", ollamaRes.status);
-        }
-    } catch (err) {
-        console.error("Connection to Ollama failed:", err.message);
+    // --- NEW: BASIC NON-AI COMMAND PARSER (Emergency Fallback) ---
+    // If user says "rename song 123 to New Title"
+    const simpleRenameMatch = message.match(/rename song (.*?) to (.*)/i);
+    if (simpleRenameMatch) {
+        const targetId = simpleRenameMatch[1].trim();
+        const targetTitle = simpleRenameMatch[2].trim();
+        botResponse = `[RENAME_SONG:${targetId}|${targetTitle}] I've processed your simplified rename request.`;
+        provider = "System Command Parser (Direct)";
     }
 
-    // 4. Fallback to Gemini if Ollama fails
-    if (!botResponse && GEMINI_API_KEY) {
-        provider = "Gemini (Cloud Fallback)";
-        console.log("Ollama failed. Falling back to Gemini...");
+    // 3. Try Local Ollama (if no basic command detected)
+    if (!botResponse) {
+        console.log("Calling Ollama at localhost:11434...");
         try {
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-            const geminiRes = await fetch(geminiUrl, {
+            const ollamaRes = await fetch('http://localhost:11434/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: "llama3:latest",
+                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: message }],
+                stream: false
+              }),
+              signal: AbortSignal.timeout(60000)
+            });
+            
+            if (ollamaRes.ok) {
+                const data = await ollamaRes.json();
+                botResponse = data.message?.content || "";
+            }
+        } catch (err) {
+            console.warn("Ollama connection failed:", err.message);
+        }
+    }
+
+    // 4. Fallback to Gemini
+    if (!botResponse && GEMINI_API_KEY) {
+        provider = "Gemini (Cloud)";
+        try {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -95,22 +95,14 @@ USER: ${adminName}. Execute commands exactly as requested.`;
                 const data = await geminiRes.json();
                 botResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             }
-        } catch (gErr) {
-            console.error("Gemini also failed.");
-        }
+        } catch (gErr) {}
     }
 
-    // 5. Ultimate Fallback (Manual UI)
+    // 5. Ultimate Fallback
     if (!botResponse) {
-        provider = "Manual Maintenance Mode";
-        if (message.toLowerCase().includes('list')) {
-            botResponse = `Currently, there are ${songCount} songs in the database. I am currently operating in Manual Mode because AI services are unavailable. \n\n${songs.slice(0,10).map(s=>`- ${s.title} (ID: ${s.id})`).join('\n')}${songCount > 10 ? '\n...and more.' : ''}`;
-        } else {
-            botResponse = "I'm having trouble connecting to your local Ollama server. Please ensure 'ollama run llama3' is active or try again in a few seconds.";
-        }
+        provider = "Manual Mode";
+        botResponse = `Currently, there are ${songCount} songs. \nStatus: AI providers (Ollama/Gemini) timed out. \nPossible fix: Ensure Ollama is running and not busy with another task.`;
     }
-
-    console.log("Final response provider:", provider);
 
     let actionLogs = [];
     const renameSongRegex = /\[RENAME_SONG:(.*?)\|(.*?)\]/g;
@@ -128,6 +120,13 @@ USER: ${adminName}. Execute commands exactly as requested.`;
       if (!error) actionLogs.push(`Deleted song ${id}`);
     }
 
+    const deleteVideoRegex = /\[DELETE_VIDEO:(.*?)\]/g;
+    while ((match = deleteVideoRegex.exec(botResponse)) !== null) {
+      const id = match[1].trim();
+      const { error } = await supabase.from('videos').delete().eq('id', id);
+      if (!error) actionLogs.push(`Deleted video ${id}`);
+    }
+
     const finalText = botResponse
         .replace(/\[RENAME_SONG:.*?\]/g, '')
         .replace(/\[DELETE_SONG:.*?\]/g, '')
@@ -140,10 +139,11 @@ USER: ${adminName}. Execute commands exactly as requested.`;
     });
 
   } catch (error) {
-    console.error('API Router Error:', error);
-    return NextResponse.json({ text: `System Error: ${error.message}. Please refresh the page.` });
+    console.error('API Error:', error);
+    return NextResponse.json({ text: `System Error: ${error.message}` });
   }
 }
+
 
 
 
