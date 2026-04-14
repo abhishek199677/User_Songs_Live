@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Heavenly Harmony</string>
+    <string name="title_activity_main">Heavenly Harmony</string>
+    <string name="package_name">com.church.heavenlyharmony</string>
+    <string name="custom_url_scheme">com.church.heavenlyharmony</string>
+</resources>

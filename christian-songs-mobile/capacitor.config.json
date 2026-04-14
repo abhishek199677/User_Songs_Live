@@ -1,0 +1,10 @@
+{
+  "appId": "com.church.heavenlyharmony",
+  "appName": "Heavenly Harmony",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://christian-songs-app.onrender.com",
+    "cleartext": true
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Heavenly Harmony",
+  "short_name": "Harmony",
+  "description": "Professional Christian Songs Repository",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/isometric/512/music.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
