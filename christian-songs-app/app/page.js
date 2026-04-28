@@ -83,6 +83,37 @@ export default function Home() {
     if(mounted && userAuth) fetchEverything();
   }, [mounted, userAuth, activeTab]);
 
+  const toggleVoiceSearch = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in your browser.');
+      return;
+    }
+    
+    if (isRecording) {
+      setIsRecording(false);
+      return;
+    }
+
+    setIsRecording(true);
+    const recognition = new SpeechRecognition();
+    recognition.lang = voiceLang;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setSearchQuery(transcript);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => setIsRecording(false);
+    recognition.onerror = () => setIsRecording(false);
+    
+    recognition.start();
+  };
+
   if(!mounted) return null;
   if(!userAuth) return <LoginSplash onLogin={setUserAuth} />;
 
@@ -144,7 +175,21 @@ export default function Home() {
       <main>
         {activeTab === 'songs' && (
           <div>
-            <div className="controls-bar"><div className="search-container"><Search className="search-icon" size={20} /><input type="text" className="search-input" placeholder="Find a song..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div></div>
+            <div className="controls-bar">
+               <div className="search-container">
+                  <Search className="search-icon" size={20} />
+                  <input type="text" className="search-input" placeholder="Find a song..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+               </div>
+               <button onClick={toggleVoiceSearch} className={`mic-button ${isRecording ? 'recording' : ''}`}>
+                  <Mic size={20} className={isRecording ? 'animate-pulse' : ''} />
+                  <span>{isRecording ? 'Listening...' : 'Voice Search'}</span>
+               </button>
+               <select className="btn btn-outline" value={voiceLang} onChange={e=>setVoiceLang(e.target.value)} style={{borderRadius:'16px', padding:'0 15px'}}>
+                  <option value="te-IN">Telugu</option>
+                  <option value="en-IN">English (India)</option>
+                  <option value="en-US">English (US)</option>
+               </select>
+            </div>
             {isLoading ? <Loader2 className="animate-spin" /> : <div className="songs-grid">{songs.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())).map(song => (
               <div key={song.id} className="song-card">
                 <div className="song-title">{song.title}</div>
